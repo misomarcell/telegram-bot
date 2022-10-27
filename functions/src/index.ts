@@ -7,25 +7,26 @@ const bot = new Telegraf(config().telegram.token, {
 	telegram: { webhookReply: true }
 });
 
-bot.on("text", async (ctx) => {
-	if (isMessageProhibited(ctx.message.text)) {
-		await ctx.deleteMessage();
-		await ctx.sendMessage(
-			`${ctx.message.from.username}'s message was deleted, due to containing prohibited words.`,
+bot.on("text", async (context) => {
+	if (isMessageProhibited(context.message.text)) {
+		await context.deleteMessage();
+		await context.sendMessage(
+			`A message from ${context.message.from.username} was removed due to containing prohibited words.`,
 			{
 				disable_notification: true
 			}
 		);
 	}
 });
-bot.catch((error: unknown, context) => {
+bot.catch(async (error: unknown, context) => {
 	logger.error("[Bot] Error", { error }, { context });
+	await context.telegram.sendMessage(config().telegram["admin-chat-id"], `Error@telegramBot: ${error} ${context}`);
 });
 
 exports.telegramBot = region("europe-west1").https.onRequest(async (request, response) => {
-	await bot.handleUpdate(request.body, response);
-
-	response.status(200).send();
+	await bot.handleUpdate(request.body, response).then(() => {
+		response.status(200).send();
+	});
 
 	return;
 });
